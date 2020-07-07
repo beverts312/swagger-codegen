@@ -2,6 +2,8 @@ package io.swagger.codegen.languages;
 
 import io.swagger.codegen.CliOption;
 import io.swagger.codegen.CodegenModel;
+import io.swagger.codegen.CodegenOperation;
+import io.swagger.codegen.CodegenParameter;
 import io.swagger.codegen.CodegenProperty;
 import io.swagger.codegen.SupportingFile;
 import io.swagger.models.ModelImpl;
@@ -138,4 +140,64 @@ public class TypeScriptFetchClientCodegen extends AbstractTypeScriptClientCodege
         this.npmRepository = npmRepository;
     }
 
+    @Override
+    public Map<String, Object> postProcessOperations(Map<String, Object> operations) {
+        Map<String, Object> objs = (Map<String, Object>) operations.get("operations");
+
+        List<CodegenOperation> ops = (List<CodegenOperation>) objs.get("operation");
+        for (CodegenOperation op : ops) {
+            // Prep a string buffer where we're going to set up our new version of the string.
+            StringBuilder pathBuffer = new StringBuilder();
+            StringBuilder parameterName = new StringBuilder();
+            int insideCurly = 0;
+
+            // Iterate through existing string, one character at a time.
+            for (int i = 0; i < op.path.length(); i++) {
+                switch (op.path.charAt(i)) {
+                case '{':
+                    // We entered curly braces, so track that.
+                    insideCurly++;
+
+                    // Add the more complicated component instead of just the brace.
+                    pathBuffer.append("${encodeURIComponent(String(options.");
+                    break;
+                case '}':
+                    // We exited curly braces, so track that.
+                    insideCurly--;
+
+                    // Add the more complicated component instead of just the brace.
+                    CodegenParameter parameter = findPathParameterByName(op, parameterName.toString());
+                    pathBuffer.append(toVarName(parameterName.toString()));
+                    if (parameter != null && parameter.isDateTime) {
+                        pathBuffer.append(".toISOString()");
+                    }
+                    pathBuffer.append("))}");
+                    parameterName.setLength(0);
+                    break;
+                default:
+                    char nextChar = op.path.charAt(i);
+                    if (insideCurly > 0) {
+                        parameterName.append(nextChar);
+                    } else {
+                        pathBuffer.append(nextChar);
+                    }
+                    break;
+                }
+            }
+
+            // Overwrite path to TypeScript template string, after applying everything we just did.
+            op.path = pathBuffer.toString();
+        }
+
+        return operations;
+    }
+
+    private CodegenParameter findPathParameterByName(CodegenOperation operation, String parameterName) {
+        for(CodegenParameter param : operation.pathParams) {
+            if (param.baseName.equals(parameterName)) {
+                return param;
+            }
+        }
+        return null;
+    }
 }
