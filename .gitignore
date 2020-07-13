@@ -33,7 +33,7 @@ packages/
 *.pm~
 *.xml~
 *.t~
-
+bin
 /target
 /generated-files
 nbactions.xml

@@ -143,8 +143,10 @@ export const {{classname}}FetchParamCreator = function (configuration?: Configur
                 localVarHeaderParameter["Authorization"] = "Bearer " + localVarAccessTokenValue;
             }
             {{/isOAuth}}
-
     {{/authMethods}}
+            if (configuration && configuration.authorizer) {
+                localVarHeaderParameter["Authorization"] = configuration.authorizer();
+            }
     {{#queryParams}}
             {{#isListContainer}}
             if ({{paramName}}) {
